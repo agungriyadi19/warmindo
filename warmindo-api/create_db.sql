@@ -43,6 +43,7 @@ CREATE TABLE menus (
     name VARCHAR(255) NOT NULL,
     image VARCHAR(255),
     description TEXT,
+    deleted BOOLEAN,
     price INTEGER NOT NULL,
     category_id INTEGER NOT NULL REFERENCES categories(id),
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,

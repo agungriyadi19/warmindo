@@ -53,7 +53,7 @@ func GetOrders(c *fiber.Ctx, dbConn *sql.DB) error {
 	var orders []db.Order
 	for rows.Next() {
 		var order db.Order
-		if err := rows.Scan(&order.ID, &order.Amount, &order.TableNumber, &order.StatusID, &order.OrderDate, &order.MenuID, &order.CreatedAt, &order.UpdatedAt); err != nil {
+		if err := rows.Scan(&order.ID, &order.Amount, &order.TableNumber, &order.StatusID, &order.OrderDate, &order.MenuID, &order.OrderCode, &order.CreatedAt, &order.UpdatedAt); err != nil {
 			return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": err.Error()})
 		}
 		orders = append(orders, order)
@@ -66,7 +66,7 @@ func GetOrderByID(c *fiber.Ctx, dbConn *sql.DB) error {
 	id := c.Params("id")
 	var order db.Order
 
-	err := dbConn.QueryRow("SELECT id, amount, table_number, status_id, order_date, menu_id, order_code, created_at, updated_at FROM orders WHERE id = $1", id).Scan(&order.ID, &order.Amount, &order.TableNumber, &order.StatusID, &order.OrderDate, &order.MenuID, &order.CreatedAt, &order.UpdatedAt)
+	err := dbConn.QueryRow("SELECT id, amount, table_number, status_id, order_date, menu_id, order_code, created_at, updated_at FROM orders WHERE id = $1", id).Scan(&order.ID, &order.Amount, &order.TableNumber, &order.StatusID, &order.OrderDate, &order.MenuID, &order.OrderCode, &order.CreatedAt, &order.UpdatedAt)
 	if err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": err.Error()})
 	}
