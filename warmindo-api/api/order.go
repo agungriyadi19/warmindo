@@ -34,8 +34,8 @@ func CreateOrder(c *fiber.Ctx, dbConn *sql.DB) error {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": err.Error()})
 	}
 
-	_, err := dbConn.Exec("INSERT INTO orders (amount, table_number, status_id, order_date, menu_id) VALUES ($1, $2, $3, $4, $5)",
-		order.Amount, order.TableNumber, order.StatusID, order.OrderDate, order.MenuID)
+	_, err := dbConn.Exec("INSERT INTO orders (amount, table_number, status_id, order_date, menu_id, order_code) VALUES ($1, $2, $3, $4, $5, $6)",
+		order.Amount, order.TableNumber, order.StatusID, order.OrderDate, order.MenuID, order.OrderCode)
 	if err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": err.Error()})
 	}
@@ -44,7 +44,7 @@ func CreateOrder(c *fiber.Ctx, dbConn *sql.DB) error {
 }
 
 func GetOrders(c *fiber.Ctx, dbConn *sql.DB) error {
-	rows, err := dbConn.Query("SELECT id, amount, table_number, status_id, order_date, menu_id, created_at, updated_at FROM orders")
+	rows, err := dbConn.Query("SELECT id, amount, table_number, status_id, order_date, menu_id, order_code, created_at, updated_at FROM orders")
 	if err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": err.Error()})
 	}
@@ -66,7 +66,7 @@ func GetOrderByID(c *fiber.Ctx, dbConn *sql.DB) error {
 	id := c.Params("id")
 	var order db.Order
 
-	err := dbConn.QueryRow("SELECT id, amount, table_number, status_id, order_date, menu_id, created_at, updated_at FROM orders WHERE id = $1", id).Scan(&order.ID, &order.Amount, &order.TableNumber, &order.StatusID, &order.OrderDate, &order.MenuID, &order.CreatedAt, &order.UpdatedAt)
+	err := dbConn.QueryRow("SELECT id, amount, table_number, status_id, order_date, menu_id, order_code, created_at, updated_at FROM orders WHERE id = $1", id).Scan(&order.ID, &order.Amount, &order.TableNumber, &order.StatusID, &order.OrderDate, &order.MenuID, &order.CreatedAt, &order.UpdatedAt)
 	if err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": err.Error()})
 	}
@@ -81,8 +81,8 @@ func UpdateOrder(c *fiber.Ctx, dbConn *sql.DB) error {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": err.Error()})
 	}
 
-	_, err := dbConn.Exec("UPDATE orders SET amount = $1, table_number = $2, status_id = $3, order_date = $4, menu_id = $5, updated_at = NOW() WHERE id = $6",
-		order.Amount, order.TableNumber, order.StatusID, order.OrderDate, order.MenuID, id)
+	_, err := dbConn.Exec("UPDATE orders SET amount = $1, table_number = $2, status_id = $3, order_date = $4, menu_id = $5, order_code = $6, updated_at = NOW() WHERE id = $7",
+		order.Amount, order.TableNumber, order.StatusID, order.OrderDate, order.MenuID, order.OrderCode, id)
 	if err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": err.Error()})
 	}

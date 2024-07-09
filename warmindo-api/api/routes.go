@@ -26,4 +26,6 @@ func SetupRoutes(app *fiber.App, dbConn *sql.DB) {
 
 	// Set up status routes
 	SetupStatusRoutes(app, dbConn)
+
+	SetupSettingsRoutes(app)
 }

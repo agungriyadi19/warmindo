@@ -22,12 +22,12 @@ type CreateReset struct {
 }
 
 type User struct {
-	ID        string `json:"id,omitempty"`
+	ID        int    `json:"id,omitempty"`
 	Password  string `json:"password,omitempty"`
 	Email     string `json:"email,omitempty"`
 	Name      string `json:"name,omitempty"`
 	Username  string `json:"username,omitempty"`
-	RoleID    string `json:"role_id,omitempty"`
+	RoleID    int    `json:"role_id,omitempty"`
 	Phone     string `json:"phone,omitempty"`
 	CreatedAt string `json:"created_at,omitempty"`
 	UpdatedAt string `json:"updated_at,omitempty"`

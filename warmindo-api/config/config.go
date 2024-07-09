@@ -12,3 +12,14 @@ var (
 	SERVER_PORT       = os.Getenv("SERVER_PORT")
 	JWT_KEY           = os.Getenv("JWT_KEY")
 )
+
+type ConfigType map[string]string
+
+var Config = ConfigType{
+	POSTGRES_USER:     "",
+	POSTGRES_PASSWORD: "",
+	POSTGRES_DB:       "",
+	CLIENT_URL:        "",
+	SERVER_PORT:       "",
+	JWT_KEY:           "",
+}

@@ -33,10 +33,12 @@ func main() {
 		AllowOrigins:     os.Getenv("CLIENT_URL"),
 		AllowCredentials: true,
 		AllowHeaders:     "Content-Type, Content-Length, Accept-Encoding, Authorization, accept, origin",
-		AllowMethods:     "POST, OPTIONS, GET, PUT",
+		AllowMethods:     "POST, OPTIONS, GET, PUT, DELETE",
 		ExposeHeaders:    "Set-Cookie",
 	}))
 
+	// Middleware untuk akses file statis
+	app.Static("/assets/images/", "./assets/images")
 	api.SetupRoutes(app, dbConn)
 
 	log.Fatal(app.Listen(os.Getenv("SERVER_PORT")))

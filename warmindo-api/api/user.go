@@ -2,10 +2,21 @@ package api
 
 import (
 	"database/sql"
+	"time"
+	"warmindo-api/config"
 	"warmindo-api/db"
 
 	"github.com/gofiber/fiber/v2"
+
+	"warmindo-api/utils"
+
+	"github.com/dgrijalva/jwt-go"
 )
+
+type Claims struct {
+	db.User
+	jwt.StandardClaims
+}
 
 func SetupUserRoutes(app *fiber.App, dbConn *sql.DB) {
 	userAPI := app.Group("/api/users")
@@ -24,6 +35,14 @@ func SetupUserRoutes(app *fiber.App, dbConn *sql.DB) {
 	userAPI.Delete("/:id", func(c *fiber.Ctx) error {
 		return DeleteUser(c, dbConn) // Replace dbConn with your db connection
 	})
+
+	userAPI.Post("/login", func(c *fiber.Ctx) error {
+		return Login(c, dbConn)
+	})
+	userAPI.Get("/session", func(c *fiber.Ctx) error {
+		return Session(c, dbConn)
+	})
+	userAPI.Post("/logout", Logout)
 }
 
 // Handlers untuk User
@@ -107,4 +126,77 @@ func DeleteUser(c *fiber.Ctx, dbConn *sql.DB) error {
 	}
 
 	return c.JSON(fiber.Map{"success": true})
+}
+
+func Session(c *fiber.Ctx, dbConn *sql.DB) error {
+	tokenUser := c.Locals("user").(*jwt.Token)
+	claims := tokenUser.Claims.(jwt.MapClaims)
+	userID, ok := claims["id"].(string)
+
+	if !ok {
+		return c.SendStatus(fiber.StatusUnauthorized)
+	}
+
+	user := &db.User{}
+	if err := dbConn.QueryRow(db.GetUserByIDQuery, userID).
+		Scan(&user.ID, &user.Name, &user.Password, &user.Email, &user.CreatedAt, &user.UpdatedAt); err != nil {
+		if err == sql.ErrNoRows {
+			return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{"success": false, "errors": []string{"Incorrect credentials"}})
+		}
+	}
+	user.Password = ""
+	return c.JSON(&fiber.Map{"success": true, "user": user})
+}
+
+func Login(c *fiber.Ctx, dbConn *sql.DB) error {
+	loginUser := &db.User{}
+
+	if err := c.BodyParser(loginUser); err != nil {
+		return err
+	}
+
+	user := &db.User{}
+	if err := dbConn.QueryRow(db.GetUserByEmailQuery, loginUser.Email).
+		Scan(&user.ID, &user.Name, &user.Password, &user.Email, &user.CreatedAt, &user.UpdatedAt); err != nil {
+		if err == sql.ErrNoRows {
+			return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{"success": false, "errors": []string{"Incorrect credentials"}})
+		}
+	}
+
+	match := utils.ComparePassword(user.Password, loginUser.Password)
+	if !match {
+		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{"success": false, "errors": []string{"Incorrect credentials"}})
+	}
+
+	expirationTime := time.Now().Add(30 * time.Minute)
+	user.Password = ""
+	claims := &Claims{
+		User: *user,
+		StandardClaims: jwt.StandardClaims{
+			ExpiresAt: expirationTime.Unix(),
+		},
+	}
+
+	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
+	var jwtKey = []byte(config.Config[config.JWT_KEY])
+	tokenValue, err := token.SignedString(jwtKey)
+
+	if err != nil {
+		return err
+	}
+
+	c.Cookie(&fiber.Cookie{
+		Name:     "token",
+		Value:    tokenValue,
+		Expires:  expirationTime,
+		Domain:   config.Config[config.CLIENT_URL],
+		HTTPOnly: true,
+	})
+
+	return c.JSON(&fiber.Map{"success": true, "user": claims.User, "token": tokenValue})
+}
+
+func Logout(c *fiber.Ctx) error {
+	c.ClearCookie()
+	return c.SendStatus(fiber.StatusOK)
 }

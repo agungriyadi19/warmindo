@@ -14,7 +14,11 @@ type Settings struct {
 }
 
 func GetSettings(c *fiber.Ctx) error {
-	radius := os.Getenv("MAX_RADIUS")
+	radiusStr := os.Getenv("MAX_RADIUS")
+	radius, err := strconv.Atoi(radiusStr)
+	if err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "Invalid radius value"})
+	}
 	wifiNetworks := strings.Split(os.Getenv("ALLOWED_NETWORKS"), ",")
 	return c.JSON(Settings{Radius: radius, WifiNetworks: wifiNetworks})
 }
@@ -31,7 +35,7 @@ func SaveSettings(c *fiber.Ctx) error {
 	return c.JSON(fiber.Map{"status": "success"})
 }
 
-func SetupRoutes(app *fiber.App) {
+func SetupSettingsRoutes(app *fiber.App) {
 	app.Get("/api/settings", GetSettings)
 	app.Post("/api/settings", SaveSettings)
 }

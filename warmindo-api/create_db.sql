@@ -51,6 +51,7 @@ CREATE TABLE menus (
 
 CREATE TABLE orders (
     id SERIAL PRIMARY KEY,
+    order_code VARCHAR(255) NOT NULL,
     amount INTEGER NOT NULL,
     table_number VARCHAR(255) NOT NULL,
     status_id INTEGER NOT NULL REFERENCES statuses(id),

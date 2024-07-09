@@ -2,9 +2,12 @@ package api
 
 import (
 	"database/sql"
+	"path/filepath"
+	"strconv"
 	"warmindo-api/db"
 
 	"github.com/gofiber/fiber/v2"
+	"github.com/google/uuid"
 )
 
 func SetupMenuRoutes(app *fiber.App, dbConn *sql.DB) {
@@ -30,11 +33,32 @@ func SetupMenuRoutes(app *fiber.App, dbConn *sql.DB) {
 
 func CreateMenu(c *fiber.Ctx, dbConn *sql.DB) error {
 	var menu db.Menu
-	if err := c.BodyParser(&menu); err != nil {
+	// Parse the multipart form
+	form, err := c.MultipartForm()
+	if err != nil {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": err.Error()})
 	}
 
-	_, err := dbConn.Exec("INSERT INTO menus (name, image, description, price, category_id) VALUES ($1, $2, $3, $4, $5)",
+	// Extract fields from the form
+	menu.Name = form.Value["name"][0]
+	menu.Description = form.Value["description"][0]
+	menu.Price, _ = strconv.Atoi(form.Value["price"][0])
+	menu.CategoryID, _ = strconv.Atoi(form.Value["category_id"][0])
+
+	// Handle file upload
+	file, err := c.FormFile("image")
+	if err == nil {
+		// Save file to the server
+		fileName := uuid.New().String() + filepath.Ext(file.Filename)
+		filePath := filepath.Join("assets", "images", fileName)
+
+		if err := c.SaveFile(file, filePath); err != nil {
+			return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": err.Error()})
+		}
+		menu.Image = filePath
+	}
+
+	_, err = dbConn.Exec("INSERT INTO menus (name, image, description, price, category_id) VALUES ($1, $2, $3, $4, $5)",
 		menu.Name, menu.Image, menu.Description, menu.Price, menu.CategoryID)
 	if err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": err.Error()})
@@ -44,7 +68,7 @@ func CreateMenu(c *fiber.Ctx, dbConn *sql.DB) error {
 }
 
 func GetMenus(c *fiber.Ctx, dbConn *sql.DB) error {
-	rows, err := dbConn.Query("SELECT id, name, image, description, price, category_id, created_at, updated_at FROM menus")
+	rows, err := dbConn.Query("SELECT id, name, image, description, price, category_id, created_at, updated_at FROM menus WHERE deleted = false")
 	if err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": err.Error()})
 	}
@@ -77,11 +101,33 @@ func GetMenuByID(c *fiber.Ctx, dbConn *sql.DB) error {
 func UpdateMenu(c *fiber.Ctx, dbConn *sql.DB) error {
 	id := c.Params("id")
 	var menu db.Menu
-	if err := c.BodyParser(&menu); err != nil {
+
+	// Parse the multipart form
+	form, err := c.MultipartForm()
+	if err != nil {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": err.Error()})
 	}
 
-	_, err := dbConn.Exec("UPDATE menus SET name = $1, image = $2, description = $3, price = $4, category_id = $5, updated_at = NOW() WHERE id = $6",
+	// Extract fields from the form
+	menu.Name = form.Value["name"][0]
+	menu.Description = form.Value["description"][0]
+	menu.Price, _ = strconv.Atoi(form.Value["price"][0])
+	menu.CategoryID, _ = strconv.Atoi(form.Value["category_id"][0])
+
+	// Handle file upload
+	file, err := c.FormFile("image")
+	if err == nil {
+		// Save file to the server
+		fileName := uuid.New().String() + filepath.Ext(file.Filename)
+		filePath := filepath.Join("assets", "images", fileName)
+
+		if err := c.SaveFile(file, filePath); err != nil {
+			return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": err.Error()})
+		}
+		menu.Image = filePath
+	}
+
+	_, err = dbConn.Exec("UPDATE menus SET name = $1, image = $2, description = $3, price = $4, category_id = $5, updated_at = NOW() WHERE id = $6",
 		menu.Name, menu.Image, menu.Description, menu.Price, menu.CategoryID, id)
 	if err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": err.Error()})
@@ -93,7 +139,7 @@ func UpdateMenu(c *fiber.Ctx, dbConn *sql.DB) error {
 func DeleteMenu(c *fiber.Ctx, dbConn *sql.DB) error {
 	id := c.Params("id")
 
-	_, err := dbConn.Exec("DELETE FROM menus WHERE id = $1", id)
+	_, err := dbConn.Exec("UPDATE menus SET deleted = true WHERE id = $1", id)
 	if err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": err.Error()})
 	}
