@@ -2,12 +2,12 @@ package api
 
 import (
 	"database/sql"
-	"path/filepath"
+	"encoding/base64"
+	"io/ioutil"
 	"strconv"
 	"warmindo-api/db"
 
 	"github.com/gofiber/fiber/v2"
-	"github.com/google/uuid"
 )
 
 func SetupMenuRoutes(app *fiber.App, dbConn *sql.DB) {
@@ -48,14 +48,19 @@ func CreateMenu(c *fiber.Ctx, dbConn *sql.DB) error {
 	// Handle file upload
 	file, err := c.FormFile("image")
 	if err == nil {
-		// Save file to the server
-		fileName := uuid.New().String() + filepath.Ext(file.Filename)
-		filePath := filepath.Join("assets", "images", fileName)
-
-		if err := c.SaveFile(file, filePath); err != nil {
+		fileContent, err := file.Open()
+		if err != nil {
 			return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": err.Error()})
 		}
-		menu.Image = filePath
+		defer fileContent.Close()
+
+		imageData, err := ioutil.ReadAll(fileContent)
+		if err != nil {
+			return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": err.Error()})
+		}
+
+		// Encode image to base64
+		menu.Image = base64.StdEncoding.EncodeToString(imageData)
 	}
 
 	_, err = dbConn.Exec("INSERT INTO menus (name, image, description, price, category_id) VALUES ($1, $2, $3, $4, $5)",
@@ -117,14 +122,19 @@ func UpdateMenu(c *fiber.Ctx, dbConn *sql.DB) error {
 	// Handle file upload
 	file, err := c.FormFile("image")
 	if err == nil {
-		// Save file to the server
-		fileName := uuid.New().String() + filepath.Ext(file.Filename)
-		filePath := filepath.Join("assets", "images", fileName)
-
-		if err := c.SaveFile(file, filePath); err != nil {
+		fileContent, err := file.Open()
+		if err != nil {
 			return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": err.Error()})
 		}
-		menu.Image = filePath
+		defer fileContent.Close()
+
+		imageData, err := ioutil.ReadAll(fileContent)
+		if err != nil {
+			return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": err.Error()})
+		}
+
+		// Encode image to base64
+		menu.Image = base64.StdEncoding.EncodeToString(imageData)
 	}
 
 	_, err = dbConn.Exec("UPDATE menus SET name = $1, image = $2, description = $3, price = $4, category_id = $5, updated_at = NOW() WHERE id = $6",
