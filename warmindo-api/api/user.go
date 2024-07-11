@@ -2,9 +2,9 @@ package api
 
 import (
 	"database/sql"
-	"time"
-	"warmindo-api/config"
+	"fmt"
 	"warmindo-api/db"
+	"warmindo-api/middleware"
 
 	"github.com/gofiber/fiber/v2"
 
@@ -50,20 +50,27 @@ func SetupUserRoutes(app *fiber.App, dbConn *sql.DB) {
 func CreateUser(c *fiber.Ctx, dbConn *sql.DB) error {
 	var user db.User
 	if err := c.BodyParser(&user); err != nil {
-		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": err.Error()})
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "Invalid request body"})
 	}
 
-	if err := user.HashPassword(); err != nil {
-		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": err.Error()})
+	validationErrors := utils.ValidateUser(user)
+	if len(validationErrors) > 0 {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"errors": validationErrors})
 	}
 
-	_, err := dbConn.Exec("INSERT INTO users (email, password, name, username, role_id, phone) VALUES ($1, $2, $3, $4, $5, $6)",
+	hashedPassword, err := utils.GetHash(user.Password)
+	if err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "Failed to hash password"})
+	}
+	user.Password = hashedPassword
+
+	_, err = dbConn.Exec("INSERT INTO users (email, password, name, username, role_id, phone, created_at, updated_at) VALUES ($1, $2, $3, $4, $5, $6, NOW(), NOW())",
 		user.Email, user.Password, user.Name, user.Username, user.RoleID, user.Phone)
 	if err != nil {
-		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": err.Error()})
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "Failed to insert user into database"})
 	}
 
-	return c.JSON(fiber.Map{"success": true})
+	return c.JSON(fiber.Map{"success": true, "message": "User created successfully"})
 }
 
 func GetUsers(c *fiber.Ctx, dbConn *sql.DB) error {
@@ -149,51 +156,30 @@ func Session(c *fiber.Ctx, dbConn *sql.DB) error {
 }
 
 func Login(c *fiber.Ctx, dbConn *sql.DB) error {
-	loginUser := &db.User{}
+	loginUser := &db.Login{}
 
 	if err := c.BodyParser(loginUser); err != nil {
-		return err
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"success": false, "errors": []string{"Invalid request body"}})
 	}
 
-	user := &db.User{}
-	if err := dbConn.QueryRow(db.GetUserByEmailQuery, loginUser.Email).
-		Scan(&user.ID, &user.Name, &user.Password, &user.Email, &user.CreatedAt, &user.UpdatedAt); err != nil {
+	user, err := db.GetUserByEmail(dbConn, loginUser.Email)
+	if err != nil {
 		if err == sql.ErrNoRows {
 			return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{"success": false, "errors": []string{"Incorrect credentials"}})
 		}
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"success": false, "errors": []string{"Database error"}})
 	}
 
-	match := utils.ComparePassword(user.Password, loginUser.Password)
-	if !match {
+	if !utils.ComparePassword(user.Password, loginUser.Password) {
 		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{"success": false, "errors": []string{"Incorrect credentials"}})
 	}
 
-	expirationTime := time.Now().Add(30 * time.Minute)
-	user.Password = ""
-	claims := &Claims{
-		User: *user,
-		StandardClaims: jwt.StandardClaims{
-			ExpiresAt: expirationTime.Unix(),
-		},
-	}
-
-	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
-	var jwtKey = []byte(config.Config[config.JWT_KEY])
-	tokenValue, err := token.SignedString(jwtKey)
-
+	tokenValue, err := middleware.GenerateJWT(fmt.Sprintf("%d", user.ID))
 	if err != nil {
-		return err
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"success": false, "errors": []string{"Error generating token"}})
 	}
 
-	c.Cookie(&fiber.Cookie{
-		Name:     "token",
-		Value:    tokenValue,
-		Expires:  expirationTime,
-		Domain:   config.Config[config.CLIENT_URL],
-		HTTPOnly: true,
-	})
-
-	return c.JSON(&fiber.Map{"success": true, "user": claims.User, "token": tokenValue})
+	return c.JSON(fiber.Map{"success": true, "user": user, "token": tokenValue})
 }
 
 func Logout(c *fiber.Ctx) error {

@@ -34,17 +34,20 @@ type User struct {
 }
 
 const (
-	GetUserByEmailQuery = `SELECT * FROM users WHERE email = $1;`
+	GetUserByEmailQuery = `SELECT id, email, name, username, role_id, phone, password, created_at, updated_at FROM users WHERE email = $1;`
 )
 
 func GetUserByEmail(dbConn *sql.DB, email string) (*User, error) {
 	var user User
-	err := dbConn.QueryRow(GetUserByEmailQuery, email).Scan(&user.ID, &user.Name)
+	err := dbConn.QueryRow(GetUserByEmailQuery, email).Scan(
+		&user.ID, &user.Email, &user.Name, &user.Username, &user.RoleID, &user.Phone, &user.Password, &user.CreatedAt, &user.UpdatedAt,
+	)
 	if err != nil {
 		return nil, err
 	}
 	return &user, nil
 }
+
 func (user *User) HashPassword() error {
 	bytes, err := bcrypt.GenerateFromPassword([]byte(user.Password), 10)
 	if err != nil {
