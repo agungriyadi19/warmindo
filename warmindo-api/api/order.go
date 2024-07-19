@@ -12,14 +12,17 @@ func SetupOrderRoutes(app *fiber.App, dbConn *sql.DB) {
 	orderAPI.Get("/", func(c *fiber.Ctx) error {
 		return GetOrders(c, dbConn)
 	})
-	orderAPI.Get("/:id", func(c *fiber.Ctx) error {
-		return GetOrderByID(c, dbConn)
+	orderAPI.Get("/:order_code", func(c *fiber.Ctx) error {
+		return GetOrdersByCode(c, dbConn)
 	})
 	orderAPI.Post("/", func(c *fiber.Ctx) error {
 		return CreateOrder(c, dbConn)
 	})
 	orderAPI.Put("/:id", func(c *fiber.Ctx) error {
 		return UpdateOrder(c, dbConn)
+	})
+	orderAPI.Put("/status", func(c *fiber.Ctx) error {
+		return UpdateOrderStatus(c, dbConn)
 	})
 	orderAPI.Delete("/:id", func(c *fiber.Ctx) error {
 		return DeleteOrder(c, dbConn)
@@ -101,8 +104,8 @@ func GetOrders(c *fiber.Ctx, dbConn *sql.DB) error {
 	return c.JSON(fiber.Map{"success": true, "orders": orders})
 }
 
-func GetOrderByID(c *fiber.Ctx, dbConn *sql.DB) error {
-	id := c.Params("id")
+func GetOrdersByCode(c *fiber.Ctx, dbConn *sql.DB) error {
+	orderCode := c.Params("order_code")
 
 	query := `
 	SELECT o.id, o.amount, o.table_number, o.status_id, o.order_date, o.menu_id, o.order_code, 
@@ -115,40 +118,50 @@ func GetOrderByID(c *fiber.Ctx, dbConn *sql.DB) error {
     JOIN statuses s ON o.status_id = s.id
     JOIN menus m ON o.menu_id = m.id
     JOIN categories c ON m.category_id = c.id
-    WHERE o.id = $1`
+    WHERE o.order_code = $1`
 
-	var order db.Order
-	var statusName, menuName, menuImage, menuDescription, categoryName string
-	var menuPrice, totalPrice int
-
-	err := dbConn.QueryRow(query, id).Scan(&order.ID, &order.Amount, &order.TableNumber, &order.StatusID, &order.OrderDate, &order.MenuID, &order.OrderCode,
-		&order.CreatedAt, &order.UpdatedAt, &statusName, &menuName, &menuImage, &menuDescription, &menuPrice, &categoryName, &totalPrice)
+	rows, err := dbConn.Query(query, orderCode)
 	if err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": err.Error()})
 	}
+	defer rows.Close()
 
-	orderMap := fiber.Map{
-		"id":           order.ID,
-		"amount":       order.Amount,
-		"table_number": order.TableNumber,
-		"status_id":    order.StatusID,
-		"order_date":   order.OrderDate,
-		"menu_id":      order.MenuID,
-		"order_code":   order.OrderCode,
-		"created_at":   order.CreatedAt,
-		"updated_at":   order.UpdatedAt,
-		"status_name":  statusName,
-		"menu": fiber.Map{
-			"name":          menuName,
-			"image":         menuImage,
-			"description":   menuDescription,
-			"price":         menuPrice,
-			"category_name": categoryName,
-		},
-		"total_price": totalPrice,
+	var orders []fiber.Map
+	for rows.Next() {
+		var order db.Order
+		var statusName, menuName, menuImage, menuDescription, categoryName string
+		var menuPrice, totalPrice int
+
+		if err := rows.Scan(&order.ID, &order.Amount, &order.TableNumber, &order.StatusID, &order.OrderDate, &order.MenuID, &order.OrderCode,
+			&order.CreatedAt, &order.UpdatedAt, &statusName, &menuName, &menuImage, &menuDescription, &menuPrice, &categoryName, &totalPrice); err != nil {
+			return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": err.Error()})
+		}
+
+		orderMap := fiber.Map{
+			"id":           order.ID,
+			"amount":       order.Amount,
+			"table_number": order.TableNumber,
+			"status_id":    order.StatusID,
+			"order_date":   order.OrderDate,
+			"menu_id":      order.MenuID,
+			"order_code":   order.OrderCode,
+			"created_at":   order.CreatedAt,
+			"updated_at":   order.UpdatedAt,
+			"status_name":  statusName,
+			"menu": fiber.Map{
+				"name":          menuName,
+				"image":         menuImage,
+				"description":   menuDescription,
+				"price":         menuPrice,
+				"category_name": categoryName,
+			},
+			"total_price": totalPrice,
+		}
+
+		orders = append(orders, orderMap)
 	}
 
-	return c.JSON(fiber.Map{"success": true, "order": orderMap})
+	return c.JSON(fiber.Map{"success": true, "orders": orders})
 }
 
 func UpdateOrder(c *fiber.Ctx, dbConn *sql.DB) error {
@@ -171,6 +184,26 @@ func DeleteOrder(c *fiber.Ctx, dbConn *sql.DB) error {
 	id := c.Params("id")
 
 	_, err := dbConn.Exec("DELETE FROM orders WHERE id = $1", id)
+	if err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": err.Error()})
+	}
+
+	return c.JSON(fiber.Map{"success": true})
+}
+
+func UpdateOrderStatus(c *fiber.Ctx, dbConn *sql.DB) error {
+	type UpdateStatusRequest struct {
+		OrderCodeOrID string `json:"order_code_or_id"`
+		StatusID      int    `json:"status_id"`
+	}
+
+	var request UpdateStatusRequest
+	if err := c.BodyParser(&request); err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": err.Error()})
+	}
+
+	// Update the order status based on the provided order code or ID
+	_, err := dbConn.Exec("UPDATE orders SET status_id = $1, updated_at = NOW() WHERE order_code = $2 OR id = $2", request.StatusID, request.OrderCodeOrID)
 	if err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": err.Error()})
 	}
