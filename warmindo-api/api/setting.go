@@ -4,54 +4,66 @@ import (
 	"database/sql"
 	"warmindo-api/db"
 
+	"warmindo-api/middleware"
+
 	"github.com/gofiber/fiber/v2"
 )
 
-// SetupSettingsRoutes sets up the routes for settings
+// SetupSettingsRoutes sets up the routes for settings with authentication middleware
 func SetupSettingsRoutes(app *fiber.App, dbConn *sql.DB) {
-	settingsAPI := app.Group("/api/settings")
+	settingsAPI := app.Group("/api/settings", middleware.AuthMiddleware(1))
 	settingsAPI.Get("/", func(c *fiber.Ctx) error {
 		return GetSettings(c, dbConn)
 	})
-	settingsAPI.Post("/", func(c *fiber.Ctx) error {
-		return CreateOrUpdateSettings(c, dbConn)
+	settingsAPI.Put("/", func(c *fiber.Ctx) error {
+		return CreateOrUpdateSettings(c, dbConn) // Updated to use PUT method for editing
 	})
 }
 
-// Handlers for Settings
-
+// CreateOrUpdateSettings handles updating settings with a fixed id of 1
 func CreateOrUpdateSettings(c *fiber.Ctx, dbConn *sql.DB) error {
 	var settings db.Settings
 	if err := c.BodyParser(&settings); err != nil {
-		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": err.Error()})
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "Invalid request body"})
 	}
 
-	// Assuming a single row for settings, use UPSERT
+	// Update settings with id = 1
 	query := `
-		INSERT INTO settings (title, subtitle, seats, latitude, longitude, radius)
-		VALUES ($1, $2, $3, $4, $5, $6)
-		ON CONFLICT (id) DO UPDATE SET
-		title = EXCLUDED.title,
-		subtitle = EXCLUDED.subtitle,
-		seats = EXCLUDED.seats,
-		latitude = EXCLUDED.latitude,
-		longitude = EXCLUDED.longitude,
-		radius = EXCLUDED.radius;
+		UPDATE settings
+		SET total_table = $1,
+			latitude = $2,
+			longitude = $3,
+			radius = $4
+		WHERE id = 1;
 	`
 
-	_, err := dbConn.Exec(query, settings.Title, settings.Subtitle, settings.Seats, settings.Latitude, settings.Longitude, settings.Radius)
+	res, err := dbConn.Exec(query, settings.TotalTable, settings.Latitude, settings.Longitude, settings.Radius)
 	if err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": err.Error()})
+	}
+
+	// Check if any row was updated
+	rowsAffected, err := res.RowsAffected()
+	if err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": err.Error()})
+	}
+	if rowsAffected == 0 {
+		return c.Status(fiber.StatusNotFound).JSON(fiber.Map{"error": "Settings with id 1 not found"})
 	}
 
 	return c.JSON(fiber.Map{"success": true})
 }
 
+// GetSettings handles retrieving settings
 func GetSettings(c *fiber.Ctx, dbConn *sql.DB) error {
 	var settings db.Settings
 
-	err := dbConn.QueryRow("SELECT title, subtitle, seats, latitude, longitude, radius FROM settings WHERE id = 1").Scan(&settings.Title, &settings.Subtitle, &settings.Seats, &settings.Latitude, &settings.Longitude, &settings.Radius)
+	err := dbConn.QueryRow("SELECT total_table, latitude, longitude, radius FROM settings WHERE id = 1").Scan(&settings.TotalTable, &settings.Latitude, &settings.Longitude, &settings.Radius)
 	if err != nil {
+		if err == sql.ErrNoRows {
+			// Optionally handle the case where no settings are found
+			return c.Status(fiber.StatusNotFound).JSON(fiber.Map{"error": "Settings not found"})
+		}
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": err.Error()})
 	}
 

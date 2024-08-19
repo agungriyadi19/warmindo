@@ -31,9 +31,9 @@ const (
 	UpdateStatusQuery  = `UPDATE statuses SET name = $1, updated_at = NOW() WHERE id = $2`
 	DeleteStatusQuery  = `DELETE FROM statuses WHERE id = $1`
 
-	CreateUserQuery  = `INSERT INTO users (email, password, name, username, role_id, phone) VALUES ($1, $2, $3, $4, $5, $6)`
-	GetUsersQuery    = `SELECT id, email, name, username, role_id, phone, created_at, updated_at FROM users`
-	GetUserByIDQuery = `SELECT id, email, name, username, role_id, phone, created_at, updated_at FROM users WHERE id = $1`
-	UpdateUserQuery  = `UPDATE users SET email = $1, password = $2, name = $3, username = $4, role_id = $5, phone = $6, updated_at = NOW() WHERE id = $7`
-	DeleteUserQuery  = `DELETE FROM users WHERE id = $1`
+	CreateUserQuery  = `INSERT INTO staffs (email, password, name, username, role_id, phone) VALUES ($1, $2, $3, $4, $5, $6)`
+	GetUsersQuery    = `SELECT id, email, name, username, role_id, phone, created_at, updated_at FROM staffs`
+	GetUserByIDQuery = `SELECT id, email, name, username, role_id, phone, created_at, updated_at FROM staffs WHERE id = $1`
+	UpdateUserQuery  = `UPDATE staffs SET email = $1, password = $2, name = $3, username = $4, role_id = $5, phone = $6, updated_at = NOW() WHERE id = $7`
+	DeleteUserQuery  = `DELETE FROM staffs WHERE id = $1`
 )

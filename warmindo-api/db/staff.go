@@ -6,19 +6,9 @@ import (
 	"golang.org/x/crypto/bcrypt"
 )
 
-type ResetPassword struct {
-	ID              int    `json:"id"`
-	Password        string `json:"password"`
-	ConfirmPassword string `json:"confirm_password"`
-}
-
 type Login struct {
 	Password string `json:"password,omitempty"`
 	Email    string `json:"email,omitempty"`
-}
-
-type CreateReset struct {
-	Email string `json:"email"`
 }
 
 type User struct {
@@ -34,7 +24,7 @@ type User struct {
 }
 
 const (
-	GetUserByEmailQuery = `SELECT id, email, name, username, role_id, phone, password, created_at, updated_at FROM users WHERE email = $1;`
+	GetUserByEmailQuery = `SELECT id, email, name, username, role_id, phone, password, created_at, updated_at FROM staffs WHERE email = $1;`
 )
 
 func GetUserByEmail(dbConn *sql.DB, email string) (*User, error) {

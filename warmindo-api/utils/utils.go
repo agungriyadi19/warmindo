@@ -27,16 +27,6 @@ func ValidateUser(user db.User) []string {
 	return errs
 }
 
-func ValidatePasswordReset(resetPassword db.ResetPassword) (bool, string) {
-	if len(resetPassword.Password) < 4 {
-		return false, "Invalid password, password should be more than 4 characters"
-	}
-	if resetPassword.Password != resetPassword.ConfirmPassword {
-		return false, "Password reset failed, passwords must match"
-	}
-	return true, ""
-}
-
 func GetHash(password string) (string, error) {
 	bytes, err := bcrypt.GenerateFromPassword([]byte(password), 10)
 	if err != nil {

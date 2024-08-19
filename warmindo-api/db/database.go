@@ -14,6 +14,7 @@ func ConnectDB() (*sql.DB, error) {
 	host := os.Getenv("POSTGRES_HOST") // Assuming you're also using an environment variable for host
 	dbname := os.Getenv("POSTGRES_DB")
 
+	// connStr := fmt.Sprintf("user=%s password=%s host=%s dbname=%s sslmode=disable", user, password, host, dbname)
 	connStr := fmt.Sprintf("user=%s password=%s host=%s dbname=%s sslmode=require", user, password, host, dbname)
 
 	return sql.Open("postgres", connStr)

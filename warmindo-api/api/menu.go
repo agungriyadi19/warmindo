@@ -7,24 +7,31 @@ import (
 	"strconv"
 	"warmindo-api/db"
 
+	"warmindo-api/middleware"
+
 	"github.com/gofiber/fiber/v2"
 )
 
 func SetupMenuRoutes(app *fiber.App, dbConn *sql.DB) {
 	menuAPI := app.Group("/api/menus")
+
+	// Public endpoints
 	menuAPI.Get("/", func(c *fiber.Ctx) error {
 		return GetMenus(c, dbConn)
 	})
 	menuAPI.Get("/:id", func(c *fiber.Ctx) error {
 		return GetMenuByID(c, dbConn)
 	})
-	menuAPI.Post("/", func(c *fiber.Ctx) error {
+
+	// Protected endpoints
+	protectedAPI := app.Group("/api/menus", middleware.AuthMiddleware(1))
+	protectedAPI.Post("/", func(c *fiber.Ctx) error {
 		return CreateMenu(c, dbConn)
 	})
-	menuAPI.Put("/:id", func(c *fiber.Ctx) error {
+	protectedAPI.Put("/:id", func(c *fiber.Ctx) error {
 		return UpdateMenu(c, dbConn)
 	})
-	menuAPI.Delete("/:id", func(c *fiber.Ctx) error {
+	protectedAPI.Delete("/:id", func(c *fiber.Ctx) error {
 		return DeleteMenu(c, dbConn)
 	})
 }

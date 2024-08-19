@@ -2,46 +2,58 @@ package middleware
 
 import (
 	"os"
+	"strings"
 	"time"
 
 	"github.com/gofiber/fiber/v2"
 	"github.com/golang-jwt/jwt"
 )
 
-func GenerateJWT(userID string) (string, error) {
-	claims := jwt.StandardClaims{
-		Subject:   userID,
-		ExpiresAt: time.Now().Add(time.Hour * 72).Unix(),
+// GenerateJWT generates a JWT token
+func GenerateJWT(userID string, roleID int) (string, error) {
+	claims := jwt.MapClaims{
+		"sub":     userID,
+		"role_id": roleID,
+		"exp":     time.Now().Add(time.Hour * 72).Unix(),
 	}
 
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
 	return token.SignedString([]byte(os.Getenv("JWT_KEY")))
 }
 
-func JWTProtected() fiber.Handler {
+// JWTProtected returns a middleware handler for JWT authentication
+func AuthMiddleware(requiredRole int) fiber.Handler {
 	return func(c *fiber.Ctx) error {
-		tokenString := c.Get("Authorization")
-		if tokenString == "" {
-			return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{"error": "Unauthorized"})
+		authHeader := c.Get("Authorization")
+		if authHeader == "" {
+			return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{"error": "No token provided"})
+		}
+
+		tokenString := strings.TrimPrefix(authHeader, "Bearer ")
+
+		// Parse token
+		secretKey := os.Getenv("JWT_KEY")
+		if secretKey == "" {
+			return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "Server configuration error"})
 		}
 
 		token, err := jwt.Parse(tokenString, func(token *jwt.Token) (interface{}, error) {
-			if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
-				return nil, fiber.ErrUnauthorized
-			}
-			return []byte(os.Getenv("JWT_KEY")), nil
+			return []byte(secretKey), nil
 		})
-
 		if err != nil || !token.Valid {
-			return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{"error": "Unauthorized"})
+			return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{"error": "Invalid token"})
 		}
 
 		claims, ok := token.Claims.(jwt.MapClaims)
 		if !ok {
-			return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{"error": "Unauthorized"})
+			return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{"error": "Invalid token claims"})
 		}
 
-		c.Locals("userID", claims["sub"])
+		roleID, ok := claims["role_id"].(float64)
+		if !ok || int(roleID) != requiredRole { // Check if role_id is 1 (Admin)
+			return c.Status(fiber.StatusForbidden).JSON(fiber.Map{"error": "Access denied"})
+		}
+
 		return c.Next()
 	}
 }
