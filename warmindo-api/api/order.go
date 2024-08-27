@@ -285,7 +285,7 @@ func UpdateOrderStatus(c *fiber.Ctx, dbConn *sql.DB) error {
 	} else if request.OrderCode != "" {
 		_, err = dbConn.Exec("UPDATE orders SET status_id = $1, updated_at = NOW() WHERE order_code = $2", request.StatusID, request.OrderCode)
 		if request.StatusID == 3 {
-			_, err = dbConn.Exec("UPDATE customers SET active = false, updated_at = NOW() WHERE order_code = $1", request.OrderCode)
+			_, err = dbConn.Exec("UPDATE customers SET active = false, end_date = NOW() WHERE order_code = $1", request.OrderCode)
 
 		}
 	}

@@ -76,13 +76,11 @@ func generateUniqueOrderCode(dbConn *sql.DB) (string, error) {
 	rand.Seed(time.Now().UnixNano())
 
 	for {
-		orderCode := fmt.Sprintf("%c%c%c%c-%d%d%d%d",
+		orderCode := fmt.Sprintf("%c%c%c%c-%d%d",
 			letters[rand.Intn(len(letters))],
 			letters[rand.Intn(len(letters))],
 			letters[rand.Intn(len(letters))],
 			letters[rand.Intn(len(letters))],
-			digits[rand.Intn(len(digits))],
-			digits[rand.Intn(len(digits))],
 			digits[rand.Intn(len(digits))],
 			digits[rand.Intn(len(digits))],
 		)
