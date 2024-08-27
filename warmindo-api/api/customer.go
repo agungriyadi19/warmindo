@@ -33,8 +33,8 @@ func SetupCustomerRoutes(app *fiber.App, dbConn *sql.DB) {
 // CheckActiveOrder handles checking if a table has an active order
 func CheckActiveOrder(c *fiber.Ctx, dbConn *sql.DB) error {
 	var req struct {
-		TableNumber int `json:"table_number"`
-		OrderCode   int `json:"order_code"`
+		TableNumber int    `json:"table_number"`
+		OrderCode   string `json:"order_code"`
 	}
 
 	if err := c.BodyParser(&req); err != nil {

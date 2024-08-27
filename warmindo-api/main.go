@@ -33,7 +33,7 @@ func main() {
 		AllowOrigins:     os.Getenv("CLIENT_URL"),
 		AllowCredentials: true,
 		AllowHeaders:     "Content-Type, Content-Length, Accept-Encoding, Authorization, accept, origin",
-		AllowMethods:     "POST, OPTIONS, GET, PUT, DELETE",
+		AllowMethods:     "POST, OPTIONS, GET, PUT, PATCH, DELETE",
 		ExposeHeaders:    "Set-Cookie",
 	}))
 

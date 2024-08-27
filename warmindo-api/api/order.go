@@ -2,6 +2,7 @@ package api
 
 import (
 	"database/sql"
+	"fmt"
 	"time"
 	"warmindo-api/db"
 
@@ -22,7 +23,7 @@ func SetupOrderRoutes(app *fiber.App, dbConn *sql.DB) {
 	orderAPI.Put("/:id", func(c *fiber.Ctx) error {
 		return UpdateOrder(c, dbConn)
 	})
-	orderAPI.Put("/status", func(c *fiber.Ctx) error {
+	orderAPI.Patch("/status", func(c *fiber.Ctx) error {
 		return UpdateOrderStatus(c, dbConn)
 	})
 	orderAPI.Delete("/:id", func(c *fiber.Ctx) error {
@@ -50,7 +51,7 @@ func CreateOrder(c *fiber.Ctx, dbConn *sql.DB) error {
 
 	// Check if the order already exists
 	var existingAmount int
-	err := dbConn.QueryRow("SELECT amount FROM orders WHERE order_code = $1 AND status_id = 1", data.OrderCode).Scan(&existingAmount)
+	err := dbConn.QueryRow("SELECT amount FROM orders WHERE order_code = $1 AND menu_id = $2 AND status_id = 1", data.OrderCode, data.MenuID).Scan(&existingAmount)
 	if err != nil && err != sql.ErrNoRows {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
 			"message": err.Error(),
@@ -61,8 +62,8 @@ func CreateOrder(c *fiber.Ctx, dbConn *sql.DB) error {
 		// Update the existing order by accumulating the amount
 		newAmount := existingAmount + data.Amount
 		_, err := dbConn.Exec(
-			"UPDATE orders SET amount = $1, updated_at = NOW() WHERE order_code = $2 AND status_id = 1",
-			newAmount, data.OrderCode,
+			"UPDATE orders SET amount = $1, updated_at = NOW() WHERE order_code = $2 AND menu_id = $3 AND status_id = 1",
+			newAmount, data.OrderCode, data.MenuID,
 		)
 		if err != nil {
 			return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
@@ -260,17 +261,35 @@ func DeleteOrder(c *fiber.Ctx, dbConn *sql.DB) error {
 
 func UpdateOrderStatus(c *fiber.Ctx, dbConn *sql.DB) error {
 	type UpdateStatusRequest struct {
-		OrderCodeOrID string `json:"order_code_or_id"`
-		StatusID      int    `json:"status_id"`
+		OrderCode string `json:"order_code"`
+		ID        int    `json:"id"`
+		StatusID  int    `json:"status_id"`
 	}
 
 	var request UpdateStatusRequest
+	fmt.Print(request)
 	if err := c.BodyParser(&request); err != nil {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": err.Error()})
 	}
 
+	// Check if both order_code and id are provided
+	if request.OrderCode == "" && request.ID == 0 {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "Order code or ID must be provided"})
+	}
+
+	var err error
+
 	// Update the order status based on the provided order code or ID
-	_, err := dbConn.Exec("UPDATE orders SET status_id = $1, updated_at = NOW() WHERE order_code = $2 OR id = $2", request.StatusID, request.OrderCodeOrID)
+	if request.ID != 0 {
+		_, err = dbConn.Exec("UPDATE orders SET status_id = $1, updated_at = NOW() WHERE id = $2", request.StatusID, request.ID)
+	} else if request.OrderCode != "" {
+		_, err = dbConn.Exec("UPDATE orders SET status_id = $1, updated_at = NOW() WHERE order_code = $2", request.StatusID, request.OrderCode)
+		if request.StatusID == 3 {
+			_, err = dbConn.Exec("UPDATE customers SET active = false, updated_at = NOW() WHERE order_code = $1", request.OrderCode)
+
+		}
+	}
+
 	if err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": err.Error()})
 	}
