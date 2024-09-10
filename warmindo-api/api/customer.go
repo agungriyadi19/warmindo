@@ -123,11 +123,11 @@ func CheckLocationAndGenerateOrderCode(c *fiber.Ctx, dbConn *sql.DB) error {
 
 	// Check if the active field for the table_number is true
 	var active bool
-	err = dbConn.QueryRow("SELECT active FROM customers WHERE table_number = $1 ORDER BY start_date ASC LIMIT 1", req.TableNumber).Scan(&active)
+	err = dbConn.QueryRow("SELECT active FROM customers WHERE table_number = $1 ORDER BY start_date DESC LIMIT 1", req.TableNumber).Scan(&active)
 	if err != nil && err != sql.ErrNoRows {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"status": false, "error": "Gagal memeriksa status aktif"})
 	}
-
+	fmt.Print(active)
 	if active {
 		return c.Status(fiber.StatusForbidden).JSON(fiber.Map{"status": false, "error": "Meja sudah memiliki kode pesanan aktif"})
 	}

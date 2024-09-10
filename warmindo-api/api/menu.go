@@ -80,7 +80,7 @@ func CreateMenu(c *fiber.Ctx, dbConn *sql.DB) error {
 }
 
 func GetMenus(c *fiber.Ctx, dbConn *sql.DB) error {
-	rows, err := dbConn.Query("SELECT id, name, image, description, price, category_id, created_at, updated_at FROM menus WHERE deleted = false")
+	rows, err := dbConn.Query("SELECT id, name, image, description, price, category_id, created_at, updated_at FROM menus WHERE deleted = false ORDER BY updated_at desc")
 	if err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": err.Error()})
 	}

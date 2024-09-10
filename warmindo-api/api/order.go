@@ -97,13 +97,14 @@ func GetOrders(c *fiber.Ctx, dbConn *sql.DB) error {
 	SELECT o.id, o.amount, o.table_number, o.status_id, o.order_date, o.menu_id, o.order_code, 
            o.created_at, o.updated_at,
            s.name as status_name,
-           m.name as menu_name, m.image as menu_image, m.description as menu_description, m.price as menu_price,
+           m.name as menu_name, m.description as menu_description, m.price as menu_price,
            c.name as category_name,
            (o.amount * m.price) as total_price
     FROM orders o
     JOIN statuses s ON o.status_id = s.id
     JOIN menus m ON o.menu_id = m.id
-    JOIN categories c ON m.category_id = c.id`
+    JOIN categories c ON m.category_id = c.id
+	ORDER BY o.order_date DESC`
 
 	rows, err := dbConn.Query(query)
 	if err != nil {
@@ -114,11 +115,11 @@ func GetOrders(c *fiber.Ctx, dbConn *sql.DB) error {
 	var orders []fiber.Map
 	for rows.Next() {
 		var order db.Order
-		var statusName, menuName, menuImage, menuDescription, categoryName string
+		var statusName, menuName, menuDescription, categoryName string
 		var menuPrice, totalPrice int
 
 		if err := rows.Scan(&order.ID, &order.Amount, &order.TableNumber, &order.StatusID, &order.OrderDate, &order.MenuID, &order.OrderCode,
-			&order.CreatedAt, &order.UpdatedAt, &statusName, &menuName, &menuImage, &menuDescription, &menuPrice, &categoryName, &totalPrice); err != nil {
+			&order.CreatedAt, &order.UpdatedAt, &statusName, &menuName, &menuDescription, &menuPrice, &categoryName, &totalPrice); err != nil {
 			return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": err.Error()})
 		}
 
@@ -135,7 +136,6 @@ func GetOrders(c *fiber.Ctx, dbConn *sql.DB) error {
 			"status_name":  statusName,
 			"menu": fiber.Map{
 				"name":          menuName,
-				"image":         menuImage,
 				"description":   menuDescription,
 				"price":         menuPrice,
 				"category_name": categoryName,
@@ -157,14 +157,15 @@ func GetOrdersByCode(c *fiber.Ctx, dbConn *sql.DB) error {
 	SELECT o.id, o.amount, o.table_number, o.status_id, o.order_date, o.menu_id, o.order_code, 
            o.created_at, o.updated_at,
            s.name as status_name,
-           m.name as menu_name, m.image as menu_image, m.description as menu_description, m.price as menu_price,
+           m.name as menu_name, m.description as menu_description, m.price as menu_price,
            c.name as category_name,
            (o.amount * m.price) as total_price
     FROM orders o
     JOIN statuses s ON o.status_id = s.id
     JOIN menus m ON o.menu_id = m.id
     JOIN categories c ON m.category_id = c.id
-    WHERE o.order_code = $1`
+    WHERE o.order_code = $1
+	ORDER BY o.order_date DESC`
 
 	rows, err := dbConn.Query(query, orderCode)
 	if err != nil {
@@ -175,11 +176,11 @@ func GetOrdersByCode(c *fiber.Ctx, dbConn *sql.DB) error {
 	var orders []fiber.Map
 	for rows.Next() {
 		var order db.Order
-		var statusName, menuName, menuImage, menuDescription, categoryName string
+		var statusName, menuName, menuDescription, categoryName string
 		var menuPrice, totalPrice int
 
 		if err := rows.Scan(&order.ID, &order.Amount, &order.TableNumber, &order.StatusID, &order.OrderDate, &order.MenuID, &order.OrderCode,
-			&order.CreatedAt, &order.UpdatedAt, &statusName, &menuName, &menuImage, &menuDescription, &menuPrice, &categoryName, &totalPrice); err != nil {
+			&order.CreatedAt, &order.UpdatedAt, &statusName, &menuName, &menuDescription, &menuPrice, &categoryName, &totalPrice); err != nil {
 			return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": err.Error()})
 		}
 
@@ -196,7 +197,6 @@ func GetOrdersByCode(c *fiber.Ctx, dbConn *sql.DB) error {
 			"status_name":  statusName,
 			"menu": fiber.Map{
 				"name":          menuName,
-				"image":         menuImage,
 				"description":   menuDescription,
 				"price":         menuPrice,
 				"category_name": categoryName,

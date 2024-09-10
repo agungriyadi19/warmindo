@@ -71,7 +71,7 @@ func CreateUser(c *fiber.Ctx, dbConn *sql.DB) error {
 
 // GetUsers retrieves all users
 func GetUsers(c *fiber.Ctx, dbConn *sql.DB) error {
-	rows, err := dbConn.Query("SELECT id, email, name, username, role_id, phone, created_at, updated_at FROM staffs")
+	rows, err := dbConn.Query("SELECT id, email, name, username, role_id, phone, created_at, updated_at FROM staffs ORDER BY updated_at desc")
 	if err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": err.Error()})
 	}
